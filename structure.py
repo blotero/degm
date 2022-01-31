@@ -13,10 +13,10 @@ def get_pdf_from_r(r, mu_p = 33.9, sigma_p = 1.21, mu_n = 61, sigma_n = 1.33):
 
 class Structure():
   def __init__(self):
-    self.w = 10
-    self.h = 10
-    self.l = 10
-    self.N = 25
+    self.w = 20
+    self.h = 20
+    self.l = 20
+    self.N = 50
 
   def build(self):
     self.set_space_points()
@@ -55,9 +55,21 @@ class Structure():
     self.tensor = np.array([self.X,self.Y,self.Z]).transpose(1,2,3,0)
     self.sup = self.tensor[:,:,self.N-1,:]
 
+  def include_rods(self, height):
+    """
+    Include rods in the structures corner
+    """
+    self.Z[0,0,-1] = height + self.h/2
+    self.Z[0,-1,-1] = height + self.h/2
+    self.Z[-1,0,-1] = height + self.h/2
+    self.Z[-1,-1,-1] = height + self.h/2
+    
+    self.tensor = np.array([self.X,self.Y,self.Z]).transpose(1,2,3,0)
+    self.sup = self.tensor[:,:,self.N-1,:]
+    
+    
   def plot_structure(self):
-    fig = plt.figure(figsize=(15,9))
-    plt.subplot(121)
+    fig = plt.figure(figsize=(20,10))    
     ax = fig.add_subplot(projection='3d')
     ax.scatter(self.X[:,:,-1],self.Y[:,:,-1],self.Z[:,:,-1],c='red', label='Puntos de interés de superficie superior')
     ax.scatter(self.X[:,:,:-1],self.Y[:,:,:-1],self.Z[:,:,:-1],c='green', label='Puntos discretos de volumen interior')
@@ -90,6 +102,7 @@ class Structure():
     print("Calculando...")
     init_time = time.time()
     pdf = np.zeros((self.N,self.N))
+    self.pdf_per_point = np.zeros((self.N,self.N))
     for i in range(self.source_space.shape[0]):
       for j in range(self.source_space.shape[1]):        
         r, index = self.find_nearest(self.source_space[i,j])
@@ -105,7 +118,20 @@ class Structure():
   def plot_pdf(self):
     fig = plt.figure(figsize=(20,10))      
     ax = fig.add_subplot(projection='3d')
-    sca = ax.scatter(self.X[:,:,-1],self.Y[:,:,-1],self.Z[:,:,-1],c=self.pdf_per_point, cmap='rainbow', label='Puntos de interés de superficie superior', marker='X', s=100)
+    ax.autoscale(True)    
+    ghost_pdf = np.copy(self.pdf_per_point)
+    ghost_pdf[0,0] = 0
+    ghost_pdf[0,-1] = 0
+    ghost_pdf[-1,0] = 0
+    ghost_pdf[-1,-1] = 0
+    
+    sca = ax.scatter(self.X[:,:,-1],self.Y[:,:,-1],self.Z[:,:,-1], c=ghost_pdf, label='Puntos de interés de superficie superior', marker='o', s=40)
+    
+    ax.scatter(self.X[0,0,-1],self.Y[0,0,-1],self.Z[0,0,-1], color='red', label=f'P={self.pdf_per_point[0,0]:.2f}', marker='X', s=100)
+    ax.scatter(self.X[0,-1,-1],self.Y[0,-1,-1],self.Z[0,-1,-1], color='red', marker='X', s=100)     
+    ax.scatter(self.X[-1,0,-1],self.Y[-1,0,-1],self.Z[-1,0,-1], color='red', marker='X', s=100)     
+    ax.scatter(self.X[-1,-1,-1],self.Y[-1,-1,-1],self.Z[-1,-1,-1], color='red', marker='X', s=100)     
+    
     ax.legend()
     self.plot_external_surfaces(ax)
     cbar = fig.colorbar(sca, shrink=0.5, aspect=5)
